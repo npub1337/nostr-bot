@@ -5,10 +5,10 @@ go 1.23.1
 toolchain go1.23.3
 
 require (
-	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mmcdole/gofeed v1.3.0
 	github.com/nbd-wtf/go-nostr v0.42.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

@@ -5,17 +5,10 @@ import (
 	"log"
 	"time"
 
-	"nostr-bot/database"
-	"nostr-bot/pkg/models"
+	"nostr-bot/internal/database"
 
 	"github.com/nbd-wtf/go-nostr"
 )
-
-type Client struct {
-	PrivateKey string
-	PublicKey  string
-	Relay      *nostr.Relay
-}
 
 func NewClient(privateKey, relayURL string) (*Client, error) {
 	pubKey, err := nostr.GetPublicKey(privateKey)
@@ -35,7 +28,7 @@ func NewClient(privateKey, relayURL string) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) PublishContent(db *database.DB, content []models.Content) {
+func (client *Client) PublishContent(db *database.DB, content []Content) {
 	for _, item := range content {
 		if db.IsContentStored(item.ID) {
 			log.Printf("Content %s already published, skipping...", item.ID)
