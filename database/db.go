@@ -45,8 +45,14 @@ func (db *DB) IsContentStored(contentID string) bool {
 }
 
 func (db *DB) InsertRetrievedContent(contentID, content, source string) error {
-	_, err := db.Exec(`INSERT INTO content(content_id, content, source) VALUES (?, ?, ?)`,
-		contentID, content, source)
+	query := `INSERT INTO content(content_id, content, source) VALUES (?, ?, ?)`
+	_, err := db.Exec(query, contentID, content, source)
+	return err
+}
+
+func (db *DB) MarkAsPublished(contentID string) error {
+	query := `UPDATE content SET published = TRUE WHERE content_id = ?;`
+	_, err := db.Exec(query, contentID)
 	return err
 }
 

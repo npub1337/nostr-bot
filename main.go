@@ -33,6 +33,7 @@ func loadConfig() (*Config, error) {
 		DatabasePath:    filepath.Join("data", "content.db"),
 		RSSFeeds: []string{
 			"https://feedx.net/rss/ap.xml",
+			"https://feeds.bbci.co.uk/news/world/rss.xml",
 			// TODO: add more feeds
 		},
 	}
@@ -84,7 +85,7 @@ func main() {
 			continue
 		}
 
-		err := db.InsertRetrievedContent(contentID, item.Content, "rss")
+		err := db.InsertRetrievedContent(contentID, item.Content, item.Source)
 		if err != nil {
 			log.Printf("Failed to insert content into DB: %v", err)
 			continue
@@ -103,8 +104,6 @@ func main() {
 		// if err != nil {
 		// 	log.Fatalf("Failed to publish content: %v", err)
 		// }
-
-		log.Printf("Published content: %s", item)
 	}
 
 }
