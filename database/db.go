@@ -13,19 +13,13 @@ type DB struct {
 	*sql.DB
 }
 
-type Tweet struct {
-	ID   string
-	Text string
-}
-
-func New(dbPath string) (*DB, error) {
+func InitDB(dbPath string) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	// Ler e executar o schema
-	schemaPath := filepath.Join("sql", "schema.sql")
+	schemaPath := filepath.Join("database", "schema.sql")
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return nil, err
@@ -39,21 +33,28 @@ func New(dbPath string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-func (db *DB) IsTweetPublished(tweetID string) bool {
+func (db *DB) IsContentStored(contentID string) bool {
 	var exists bool
-	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM published_tweets WHERE tweet_id = ?)", tweetID).Scan(&exists)
+	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ?)`
+	err := db.QueryRow(query, contentID).Scan(&exists)
 	if err != nil {
-		log.Printf("Error checking tweet existence: %v", err)
+		log.Printf("Error checking if content is stored: %v", err)
 		return false
 	}
 	return exists
 }
 
-func (db *DB) MarkTweetAsPublished(tweet Tweet) error {
-	_, err := db.Exec(
-		"INSERT INTO published_tweets (tweet_id, text) VALUES (?, ?)",
-		tweet.ID,
-		tweet.Text,
-	)
+func (db *DB) InsertRetrievedContent(contentID, content, source string) error {
+	_, err := db.Exec(`INSERT INTO content(content_id, content, source) VALUES (?, ?, ?)`,
+		contentID, content, source)
 	return err
 }
+
+// func CloseDB() {
+// 	if db != nil {
+// 		err := db.Close()
+// 		if err != nil {
+// 			log.Printf("Error closing the database: %v", err)
+// 		}
+// 	}
+// }
