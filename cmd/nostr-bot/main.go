@@ -30,7 +30,7 @@ func main() {
 		b, err := bot.NewBot(
 			botConfig.Name,
 			botConfig.NostrPrivateKey,
-			cfg.NostrRelayURL,
+			cfg.RelayURL,
 			botConfig.RSSFeeds,
 			db,
 		)

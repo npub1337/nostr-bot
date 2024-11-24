@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	RelayURL string `yaml:"relay_url"`
-	Bots     []BotConfig
+	RelayURL     string      `yaml:"relay_url"`
+	DatabasePath string      `yaml:"database_path"`
+	Bots         []BotConfig `yaml:"bots"`
 }
 
 type BotConfig struct {
@@ -25,7 +26,8 @@ type yamlConfig struct {
 
 func Load() (*Config, error) {
 	config := &Config{
-		Bots: []BotConfig{},
+		DatabasePath: "data/content.db",
+		Bots:         []BotConfig{},
 	}
 
 	if err := config.loadBotsConfig(); err != nil {

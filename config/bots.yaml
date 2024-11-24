@@ -1,4 +1,5 @@
 relay_url: "wss://relay.damus.io"
+database_path: "data/content.db" #optional
 
 bots:
   - name: "example-1"
