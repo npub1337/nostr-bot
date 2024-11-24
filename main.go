@@ -1,19 +1,18 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
+	"crypto/md5"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
-	"xNostrBot/database"
+	"nostr-bot/database"
+	"nostr-bot/pkg/models"
+	"nostr-bot/pkg/nostr"
+	"nostr-bot/pkg/rss"
 
 	"github.com/joho/godotenv"
-	"github.com/nbd-wtf/go-nostr"
 )
 
 type Config struct {
@@ -22,111 +21,87 @@ type Config struct {
 	TwitterUserID      string
 }
 
-type Tweet struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-}
-
-type TwitterResponse struct {
-	Data []Tweet `json:"data"`
-}
-
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file:", err)
 	}
 
-	dbPath := filepath.Join("data", "tweets.db")
+	dbPath := filepath.Join("data", "content.db")
 	os.MkdirAll(filepath.Dir(dbPath), 0755)
 
-	db, err := database.New(dbPath)
+	db, err := database.InitDB(dbPath)
 	if err != nil {
 		log.Fatal("Error initializing database:", err)
 	}
 	defer db.Close()
 
+	// TODO: add configs (e.g. URLs, keys)
 	config := Config{
-		TwitterBearerToken: os.Getenv("TWITTER_BEARER_TOKEN"),
-		NostrPrivateKey:    os.Getenv("NOSTR_PRIVATE_KEY"),
-		TwitterUserID:      os.Getenv("TWITTER_USER_ID"),
+		NostrPrivateKey: os.Getenv("NOSTR_PRIVATE_KEY"),
 	}
 
+	/* nostr */
+
 	nostrPrivKey := config.NostrPrivateKey
-	nostrPubKey, err := nostr.GetPublicKey(nostrPrivKey)
+	nostrCli, err := nostr.NewClient(nostrPrivKey)
 	if err != nil {
 		log.Fatal("Error getting Nostr public key:", err)
 	}
 
-	//coloquei o relay.damus.io, mas depois temos que por mais relays. Se eu não me
-	// engano os relays repassam as mensagens para outros relays
-	relay, err := nostr.RelayConnect(context.Background(), "wss://relay.damus.io")
+	/* fetchers */
+
+	// TODO: add other sources
+	rssFeeds := []string{
+		"https://feedx.net/rss/ap.xml",
+		// "https://feeds.bbci.co.uk/news/world/rss.xml",
+		// "https://www.euronews.com/rss",
+		// "https://www.lemonde.fr/en/rss/une.xml",
+		// "https://time.com/feed/"
+	}
+
+	rssItems, err := rss.FetchRSSFeeds(rssFeeds)
 	if err != nil {
-		log.Fatal("Error connecting to Nostr relay:", err)
+		log.Fatal("Error fetching RSS..:", err)
 	}
 
-	tweets, err := fetchTweets(config.TwitterBearerToken, config.TwitterUserID)
-	if err != nil {
-		log.Fatalf("Error fetching tweets: %v", err)
-	}
+	/* storing content */
 
-	for _, tweet := range tweets {
-		if db.IsTweetPublished(tweet.ID) {
-			log.Printf("Tweet %s already published, skipping...", tweet.ID)
+	// TODO: add other sources
+	allContent := append(rssItems)
+	for _, item := range allContent {
+		contentID := generateContentID(item.Content)
+
+		if db.IsContentStored(contentID) {
+			log.Printf("Skipping already stored content: %s", item)
 			continue
 		}
 
-		event := nostr.Event{
-			PubKey:    nostrPubKey,
-			CreatedAt: nostr.Timestamp(time.Now().Unix()),
-			Kind:      1,
-			Content:   tweet.Text,
-		}
-
-		event.Sign(nostrPrivKey)
-
-		err = relay.Publish(context.Background(), event)
+		err := db.InsertRetrievedContent(contentID, item.Content, "rss")
 		if err != nil {
-			log.Printf("Error publishing to Nostr: %v", err)
+			log.Printf("Failed to insert content into DB: %v", err)
 			continue
 		}
-		err = db.MarkTweetAsPublished(database.Tweet{
-			ID:   tweet.ID,
-			Text: tweet.Text,
-		})
-		if err != nil {
-			log.Printf("Error marking tweet as published: %v", err)
-			continue
+	}
+
+	/* publisher */
+
+	for _, item := range allContent {
+		// TODO: build full content (i.e. remove loop)
+		contents := []models.Content{
+			{ID: item.ID, Content: item.Content},
 		}
 
-		log.Printf("Published tweet to Nostr: %s", tweet.Text)
-		time.Sleep(time.Second)
+		nostrCli.PublishContent(db, contents)
+		// if err != nil {
+		// 	log.Fatalf("Failed to publish content: %v", err)
+		// }
+
+		log.Printf("Published content: %s", item)
 	}
+
 }
 
-func fetchTweets(bearerToken, userID string) ([]Tweet, error) {
-	client := &http.Client{}
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.twitter.com/2/users/%s/tweets", userID), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+bearerToken)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Twitter API returned status %s", resp.Status)
-	}
-
-	var twitterResponse TwitterResponse
-	err = json.NewDecoder(resp.Body).Decode(&twitterResponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return twitterResponse.Data, nil
+func generateContentID(content string) string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(content)))
 }
