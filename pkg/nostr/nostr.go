@@ -3,7 +3,6 @@ package nostr
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
 	"nostr-bot/database"
@@ -18,15 +17,10 @@ type Client struct {
 	Relay      *nostr.Relay
 }
 
-func NewClient(privateKey string) (*Client, error) {
+func NewClient(privateKey, relayURL string) (*Client, error) {
 	pubKey, err := nostr.GetPublicKey(privateKey)
 	if err != nil {
 		return nil, err
-	}
-
-	relayURL := os.Getenv("NOSTR_RELAY_URL")
-	if relayURL == "" {
-		relayURL = "wss://relay.damus.io" // fallback default relay
 	}
 
 	relay, err := nostr.RelayConnect(context.Background(), relayURL)
