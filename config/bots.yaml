@@ -1,3 +1,5 @@
+relay_url: "wss://relay.damus.io"
+
 bots:
   - name: "example-1"
     private_key: "nsec1..."

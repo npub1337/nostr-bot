@@ -3,21 +3,19 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	NostrRelayURL string
-	DatabasePath  string
-	Bots          []BotConfig
+	RelayURL string `yaml:"relay_url"`
+	Bots     []BotConfig
 }
 
 type BotConfig struct {
 	Name            string   `yaml:"name"`
 	NostrPrivateKey string   `yaml:"private_key"`
+	RelayURL        string   `yaml:"relay_url,omitempty"`
 	RSSFeeds        []string `yaml:"rss_feeds"`
 }
 
@@ -26,17 +24,8 @@ type yamlConfig struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("error loading .env file: %w", err)
-	}
-
 	config := &Config{
-		NostrRelayURL: os.Getenv("NOSTR_RELAY_URL"),
-		DatabasePath:  filepath.Join("data", "content.db"),
-	}
-
-	if config.NostrRelayURL == "" {
-		config.NostrRelayURL = "wss://relay.damus.io"
+		Bots: []BotConfig{},
 	}
 
 	if err := config.loadBotsConfig(); err != nil {
@@ -52,11 +41,19 @@ func (c *Config) loadBotsConfig() error {
 		return fmt.Errorf("error reading bots config file: %w", err)
 	}
 
-	var yamlCfg yamlConfig
-	if err := yaml.Unmarshal(data, &yamlCfg); err != nil {
+	if err := yaml.Unmarshal(data, c); err != nil {
 		return fmt.Errorf("error parsing bots config: %w", err)
 	}
 
-	c.Bots = yamlCfg.Bots
 	return nil
+}
+
+func (c *Config) GetRelayURL(botConfig BotConfig) string {
+	if botConfig.RelayURL != "" {
+		return botConfig.RelayURL
+	}
+	if c.RelayURL != "" {
+		return c.RelayURL
+	}
+	return "wss://relay.damus.io" //default relay
 }
