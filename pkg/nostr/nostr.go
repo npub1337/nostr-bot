@@ -3,6 +3,7 @@ package nostr
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"nostr-bot/database"
@@ -23,8 +24,12 @@ func NewClient(privateKey string) (*Client, error) {
 		return nil, err
 	}
 
-	// TODO: get relays from env
-	relay, err := nostr.RelayConnect(context.Background(), "wss://relay.damus.io")
+	relayURL := os.Getenv("NOSTR_RELAY_URL")
+	if relayURL == "" {
+		relayURL = "wss://relay.damus.io" // fallback default relay
+	}
+
+	relay, err := nostr.RelayConnect(context.Background(), relayURL)
 	if err != nil {
 		return nil, err
 	}
