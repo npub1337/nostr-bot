@@ -1,0 +1,10 @@
+bots:
+  - name: "example-1"
+    private_key: "nsec1..."
+    rss_feeds:
+      - "https://example.com/rss"
+
+  - name: "example-2"
+    private_key: "nsec2..."
+    rss_feeds:
+      - "https://example.com/rss"

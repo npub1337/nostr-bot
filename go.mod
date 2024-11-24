@@ -9,6 +9,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mmcdole/gofeed v1.3.0
 	github.com/nbd-wtf/go-nostr v0.42.2
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
