@@ -17,14 +17,13 @@ type Client struct {
 	Relay      *nostr.Relay
 }
 
-func NewClient(privateKey string) (*Client, error) {
+func NewClient(privateKey, relayURL string) (*Client, error) {
 	pubKey, err := nostr.GetPublicKey(privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: get relays from env
-	relay, err := nostr.RelayConnect(context.Background(), "wss://relay.damus.io")
+	relay, err := nostr.RelayConnect(context.Background(), relayURL)
 	if err != nil {
 		return nil, err
 	}

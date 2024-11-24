@@ -16,51 +16,58 @@ import (
 )
 
 type Config struct {
-	TwitterBearerToken string
-	NostrPrivateKey    string
-	TwitterUserID      string
+	NostrPrivateKey string
+	NostrRelayURL   string
+	RSSFeeds        []string
+	DatabasePath    string
+}
+
+func loadConfig() (*Config, error) {
+	if err := godotenv.Load(); err != nil {
+		return nil, fmt.Errorf("error loading .env file: %w", err)
+	}
+
+	config := &Config{
+		NostrPrivateKey: os.Getenv("NOSTR_PRIVATE_KEY"),
+		NostrRelayURL:   os.Getenv("NOSTR_RELAY_URL"),
+		DatabasePath:    filepath.Join("data", "content.db"),
+		RSSFeeds: []string{
+			"https://feedx.net/rss/ap.xml",
+			// TODO: add more feeds
+		},
+	}
+
+	if config.NostrPrivateKey == "" {
+		return nil, fmt.Errorf("NOSTR_PRIVATE_KEY is required")
+	}
+
+	if config.NostrRelayURL == "" {
+		config.NostrRelayURL = "wss://relay.damus.io"
+	}
+
+	return config, nil
 }
 
 func main() {
-	err := godotenv.Load()
+	config, err := loadConfig()
 	if err != nil {
-		log.Fatal("Error loading .env file:", err)
+		log.Fatal("Error loading config:", err)
 	}
 
-	dbPath := filepath.Join("data", "content.db")
-	os.MkdirAll(filepath.Dir(dbPath), 0755)
+	os.MkdirAll(filepath.Dir(config.DatabasePath), 0755)
 
-	db, err := database.InitDB(dbPath)
+	db, err := database.InitDB(config.DatabasePath)
 	if err != nil {
 		log.Fatal("Error initializing database:", err)
 	}
 	defer db.Close()
 
-	// TODO: add configs (e.g. URLs, keys)
-	config := Config{
-		NostrPrivateKey: os.Getenv("NOSTR_PRIVATE_KEY"),
-	}
-
-	/* nostr */
-
-	nostrPrivKey := config.NostrPrivateKey
-	nostrCli, err := nostr.NewClient(nostrPrivKey)
+	nostrCli, err := nostr.NewClient(config.NostrPrivateKey, config.NostrRelayURL)
 	if err != nil {
-		log.Fatal("Error getting Nostr public key:", err)
+		log.Fatal("Error initializing Nostr client:", err)
 	}
 
-	/* fetchers */
-
-	// TODO: add other sources
-	rssFeeds := []string{
-		"https://feedx.net/rss/ap.xml",
-		// "https://feeds.bbci.co.uk/news/world/rss.xml",
-		// "https://www.euronews.com/rss",
-		// "https://www.lemonde.fr/en/rss/une.xml",
-		// "https://time.com/feed/"
-	}
-
-	rssItems, err := rss.FetchRSSFeeds(rssFeeds)
+	rssItems, err := rss.FetchRSSFeeds(config.RSSFeeds)
 	if err != nil {
 		log.Fatal("Error fetching RSS..:", err)
 	}
