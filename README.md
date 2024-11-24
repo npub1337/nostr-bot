@@ -39,4 +39,4 @@ NOSTR_RELAY_URL=your_nostr_relay_url
 4. Publishes to the configured relay (defaults to relay.damus.io if not specified)
 
 ## License
- I don't care
+ We don't care
