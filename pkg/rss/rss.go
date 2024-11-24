@@ -1,7 +1,6 @@
 package rss
 
 import (
-	"log"
 	"nostr-bot/pkg/models"
 
 	"github.com/mmcdole/gofeed"
@@ -18,8 +17,8 @@ func FetchRSSFeeds(feedURLs []string) ([]models.Content, error) {
 			items = append(items, models.Content{
 				ID:      entry.GUID,
 				Content: entry.Title + "\n" + entry.Link,
+				Source:  "rss",
 			})
-			log.Printf("%v", items)
 		}
 	}
 

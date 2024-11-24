@@ -57,11 +57,11 @@ func (client *Client) PublishContent(db *database.DB, content []models.Content) 
 			continue
 		}
 
-		// TODO: set entry on db as already published
-		// db.MarkAsPublished(database.Content{
-		// 	ID:      item.ID,
-		// 	Content: item.Content,
-		// })
+		err = db.MarkAsPublished(item.Content)
+		if err != nil {
+			log.Printf("Error setting Publish status on DB: %v", err)
+			continue
+		}
 
 		log.Printf("Published content to Nostr: %s", item.Content)
 		time.Sleep(time.Second)
