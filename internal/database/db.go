@@ -19,7 +19,7 @@ func InitDB(dbPath string) (*DB, error) {
 		return nil, err
 	}
 
-	schemaPath := filepath.Join("database", "schema.sql")
+	schemaPath := filepath.Join("internal", "database", "schema.sql")
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return nil, err
