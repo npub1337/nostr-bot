@@ -67,6 +67,54 @@ func (db *DB) MarkAsPublished(contentID string) error {
 	return err
 }
 
+func (db *DB) GetPendingContent() ([]Content, error) {
+	query := `
+		SELECT content_id, content, source 
+		FROM content 
+		WHERE status = 'pending' 
+		AND (last_attempt IS NULL OR datetime('now') > datetime(last_attempt, '+5 minutes'))
+		AND retry_count < 3
+		ORDER BY created_at ASC
+		LIMIT 10`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contents []Content
+	for rows.Next() {
+		var c Content
+		if err := rows.Scan(&c.ID, &c.Content, &c.Source); err != nil {
+			return nil, err
+		}
+		contents = append(contents, c)
+	}
+	return contents, nil
+}
+
+func (db *DB) UpdateContentStatus(contentID, status string) error {
+	query := `
+		UPDATE content 
+		SET status = ?, 
+			last_attempt = datetime('now'),
+			retry_count = CASE 
+				WHEN ? = 'failed' THEN retry_count + 1 
+				ELSE retry_count 
+			END
+		WHERE content_id = ?`
+
+	_, err := db.Exec(query, status, status, contentID)
+	return err
+}
+
+type Content struct {
+	ID      string
+	Content string
+	Source  string
+}
+
 // func CloseDB() {
 // 	if db != nil {
 // 		err := db.Close()

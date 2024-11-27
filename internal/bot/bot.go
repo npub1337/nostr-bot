@@ -20,36 +20,16 @@ func NewBot(name string, privateKey string, relayURL string, feeds []string, db 
 		NostrClient: nostrClient,
 		RSSFeeds:    feeds,
 		DB:          db,
-		stopChan:    make(chan struct{}),
 		rssFetcher:  rss.NewFetcher(),
 	}, nil
 }
 
 func (b *Bot) Start() {
-	log.Printf("[Bot: %s] Bot started, will check feeds every 30 seconds", b.Name)
-	go b.watchFeeds()
-	go b.checkAndPublishUpdates()
+	b.checkRSSFeeds()
+	b.publishPendingItems()
 }
 
-func (b *Bot) Stop() {
-	close(b.stopChan)
-}
-
-func (b *Bot) watchFeeds() {
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			b.checkAndPublishUpdates()
-		case <-b.stopChan:
-			return
-		}
-	}
-}
-
-func (b *Bot) checkAndPublishUpdates() {
+func (b *Bot) checkRSSFeeds() {
 	log.Printf("[Bot: %s] Starting RSS feeds check", b.Name)
 
 	items, err := b.rssFetcher.Fetch(b.RSSFeeds)
@@ -57,11 +37,9 @@ func (b *Bot) checkAndPublishUpdates() {
 		log.Printf("[Bot: %s] Error fetching RSS: %v", b.Name, err)
 		return
 	}
-	log.Printf("[Bot: %s] Found %d items in RSS feeds", b.Name, len(items))
 
 	for _, item := range items {
 		if b.DB.IsContentStored(item.ID) {
-			log.Printf("[Bot: %s] Item already exists in database: %s", b.Name, item.ID)
 			continue
 		}
 
@@ -69,8 +47,19 @@ func (b *Bot) checkAndPublishUpdates() {
 		err := b.DB.InsertRetrievedContent(item.ID, item.Content, item.Source)
 		if err != nil {
 			log.Printf("[Bot: %s] Failed to insert content: %v", b.Name, err)
-			continue
 		}
+	}
+}
+
+func (b *Bot) publishPendingItems() {
+	pendingItems, err := b.DB.GetPendingContent()
+	if err != nil {
+		log.Printf("[Bot: %s] Error getting pending content: %v", b.Name, err)
+		return
+	}
+
+	for _, item := range pendingItems {
+		log.Printf("[Bot: %s] Attempting to publish: %s", b.Name, item.ID)
 
 		nostrContent := nostr.Content{
 			ID:      item.ID,
@@ -78,7 +67,22 @@ func (b *Bot) checkAndPublishUpdates() {
 			Source:  item.Source,
 		}
 
-		log.Printf("[Bot: %s] Publishing content to Nostr: %s", b.Name, item.ID)
-		b.NostrClient.PublishContent(b.DB, []nostr.Content{nostrContent})
+		err := b.NostrClient.PublishContent(b.DB, nostrContent)
+		if err != nil {
+			if err.Error() == "rate-limited" {
+				log.Printf("[Bot: %s] Rate limited, will retry later: %s", b.Name, item.ID)
+				return
+			}
+			log.Printf("[Bot: %s] Failed to publish: %v", b.Name, err)
+			b.DB.UpdateContentStatus(item.ID, "failed")
+			continue
+		}
+
+		err = b.DB.UpdateContentStatus(item.ID, "published")
+		if err != nil {
+			log.Printf("[Bot: %s] Error updating content status: %v", b.Name, err)
+		}
+
+		time.Sleep(1 * time.Second)
 	}
 }

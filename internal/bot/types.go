@@ -11,6 +11,5 @@ type Bot struct {
 	NostrClient *nostr.Client
 	RSSFeeds    []string
 	DB          *database.DB
-	stopChan    chan struct{}
 	rssFetcher  rss.Fetcher
 }

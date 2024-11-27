@@ -2,7 +2,8 @@ package nostr
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"strings"
 	"time"
 
 	"nostr-bot/internal/database"
@@ -28,35 +29,23 @@ func NewClient(privateKey, relayURL string) (*Client, error) {
 	}, nil
 }
 
-func (client *Client) PublishContent(db *database.DB, content []Content) {
-	for _, item := range content {
-		if db.IsContentAlreadyPublished(item.ID) {
-			log.Printf("Content %s already published, skipping...", item.ID)
-			continue
-		}
-
-		event := nostr.Event{
-			PubKey:    client.PublicKey,
-			CreatedAt: nostr.Timestamp(time.Now().Unix()),
-			Kind:      1,
-			Content:   item.Content,
-		}
-
-		event.Sign(client.PrivateKey)
-
-		err := client.Relay.Publish(context.Background(), event)
-		if err != nil {
-			log.Printf("Error publishing to Nostr: %v", err)
-			continue
-		}
-
-		err = db.MarkAsPublished(item.Content)
-		if err != nil {
-			log.Printf("Error setting Publish status on DB: %v", err)
-			continue
-		}
-
-		log.Printf("Published content to Nostr: %s", item.Content)
-		time.Sleep(time.Second)
+func (client *Client) PublishContent(db *database.DB, content Content) error {
+	event := nostr.Event{
+		PubKey:    client.PublicKey,
+		CreatedAt: nostr.Timestamp(time.Now().Unix()),
+		Kind:      1,
+		Content:   content.Content,
 	}
+
+	event.Sign(client.PrivateKey)
+
+	err := client.Relay.Publish(context.Background(), event)
+	if err != nil {
+		if strings.Contains(err.Error(), "rate-limited") {
+			return fmt.Errorf("rate-limited")
+		}
+		return err
+	}
+
+	return nil
 }
