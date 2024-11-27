@@ -33,10 +33,10 @@ func InitDB(dbPath string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-func (db *DB) IsContentStored(contentID string) bool {
+func (db *DB) IsContentStored(contentID, botName string) bool {
 	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ?)`
-	err := db.QueryRow(query, contentID).Scan(&exists)
+	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ? AND bot_name = ?)`
+	err := db.QueryRow(query, contentID, botName).Scan(&exists)
 	if err != nil {
 		log.Printf("Error checking if content is stored: %v", err)
 		return false
@@ -44,10 +44,10 @@ func (db *DB) IsContentStored(contentID string) bool {
 	return exists
 }
 
-func (db *DB) IsContentAlreadyPublished(contentID string) bool {
+func (db *DB) IsContentAlreadyPublished(contentID, botName string) bool {
 	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ? AND published = ?)`
-	err := db.QueryRow(query, contentID, 1).Scan(&exists)
+	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ? AND bot_name = ? AND published = ?)`
+	err := db.QueryRow(query, contentID, botName, 1).Scan(&exists)
 	if err != nil {
 		log.Printf("Error checking if content is published: %v", err)
 		return false
@@ -55,21 +55,21 @@ func (db *DB) IsContentAlreadyPublished(contentID string) bool {
 	return exists
 }
 
-func (db *DB) InsertRetrievedContent(contentID, content, source string) error {
-	query := `INSERT INTO content(content_id, content, source) VALUES (?, ?, ?)`
-	_, err := db.Exec(query, contentID, content, source)
+func (db *DB) InsertRetrievedContent(contentID, content, source, botName string) error {
+	query := `INSERT INTO content(content_id, content, source, bot_name) VALUES (?, ?, ?, ?)`
+	_, err := db.Exec(query, contentID, content, source, botName)
 	return err
 }
 
-func (db *DB) MarkAsPublished(contentID string) error {
-	query := `UPDATE content SET published = TRUE WHERE content_id = ?;`
-	_, err := db.Exec(query, contentID)
+func (db *DB) MarkAsPublished(contentID, botName string) error {
+	query := `UPDATE content SET published = TRUE WHERE content_id = ? AND bot_name = ?;`
+	_, err := db.Exec(query, contentID, botName)
 	return err
 }
 
 func (db *DB) GetPendingContent() ([]Content, error) {
 	query := `
-		SELECT content_id, content, source 
+		SELECT content_id, content, source, bot_name
 		FROM content 
 		WHERE status = 'pending' 
 		AND (last_attempt IS NULL OR datetime('now') > datetime(last_attempt, '+5 minutes'))
@@ -86,7 +86,7 @@ func (db *DB) GetPendingContent() ([]Content, error) {
 	var contents []Content
 	for rows.Next() {
 		var c Content
-		if err := rows.Scan(&c.ID, &c.Content, &c.Source); err != nil {
+		if err := rows.Scan(&c.ID, &c.Content, &c.Source, &c.BotName); err != nil {
 			return nil, err
 		}
 		contents = append(contents, c)
@@ -113,13 +113,5 @@ type Content struct {
 	ID      string
 	Content string
 	Source  string
+	BotName string
 }
-
-// func CloseDB() {
-// 	if db != nil {
-// 		err := db.Close()
-// 		if err != nil {
-// 			log.Printf("Error closing the database: %v", err)
-// 		}
-// 	}
-// }

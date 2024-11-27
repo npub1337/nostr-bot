@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS content (
     status TEXT NOT NULL DEFAULT 'pending',
     retry_count INTEGER DEFAULT 0,
     last_attempt TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    bot_name TEXT NOT NULL
 );

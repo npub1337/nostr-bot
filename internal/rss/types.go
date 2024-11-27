@@ -2,6 +2,7 @@ package rss
 
 type Item struct {
 	ID      string
+	BotName string
 	Title   string
 	Link    string
 	Content string
@@ -9,5 +10,5 @@ type Item struct {
 }
 
 type Fetcher interface {
-	Fetch(urls []string) ([]Item, error)
+	Fetch(name string, urls []string) ([]Item, error)
 }

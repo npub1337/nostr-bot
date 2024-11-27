@@ -32,19 +32,19 @@ func (b *Bot) Start() {
 func (b *Bot) checkRSSFeeds() {
 	log.Printf("[Bot: %s] Starting RSS feeds check", b.Name)
 
-	items, err := b.rssFetcher.Fetch(b.RSSFeeds)
+	items, err := b.rssFetcher.Fetch(b.Name, b.RSSFeeds)
 	if err != nil {
 		log.Printf("[Bot: %s] Error fetching RSS: %v", b.Name, err)
 		return
 	}
 
 	for _, item := range items {
-		if b.DB.IsContentStored(item.ID) {
+		if b.DB.IsContentStored(item.ID, b.Name) {
 			continue
 		}
 
 		log.Printf("[Bot: %s] New item found: %s", b.Name, item.ID)
-		err := b.DB.InsertRetrievedContent(item.ID, item.Content, item.Source)
+		err := b.DB.InsertRetrievedContent(item.ID, item.Content, item.Source, b.Name)
 		if err != nil {
 			log.Printf("[Bot: %s] Failed to insert content: %v", b.Name, err)
 		}
