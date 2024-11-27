@@ -12,10 +12,15 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	log.Println("Starting Nostr Bot...")
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("Error loading config:", err)
 	}
+
+	log.Printf("Loaded configuration: %d bots configured", len(cfg.Bots))
 
 	os.MkdirAll(filepath.Dir(cfg.DatabasePath), 0755)
 
@@ -27,6 +32,7 @@ func main() {
 
 	bots := make([]*bot.Bot, 0, len(cfg.Bots))
 	for _, botConfig := range cfg.Bots {
+		log.Printf("Initializing bot: %s", botConfig.Name)
 		b, err := bot.NewBot(
 			botConfig.Name,
 			botConfig.NostrPrivateKey,
@@ -39,8 +45,11 @@ func main() {
 			continue
 		}
 		bots = append(bots, b)
+		log.Printf("Starting bot: %s", botConfig.Name)
 		b.Start()
 	}
+
+	log.Printf("All bots started. Running...")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
