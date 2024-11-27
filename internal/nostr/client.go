@@ -30,7 +30,7 @@ func NewClient(privateKey, relayURL string) (*Client, error) {
 
 func (client *Client) PublishContent(db *database.DB, content []Content) {
 	for _, item := range content {
-		if db.IsContentStored(item.ID) {
+		if db.IsContentAlreadyPublished(item.ID) {
 			log.Printf("Content %s already published, skipping...", item.ID)
 			continue
 		}

@@ -44,6 +44,17 @@ func (db *DB) IsContentStored(contentID string) bool {
 	return exists
 }
 
+func (db *DB) IsContentAlreadyPublished(contentID string) bool {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM content WHERE content_id = ? AND published = ?)`
+	err := db.QueryRow(query, contentID, 1).Scan(&exists)
+	if err != nil {
+		log.Printf("Error checking if content is published: %v", err)
+		return false
+	}
+	return exists
+}
+
 func (db *DB) InsertRetrievedContent(contentID, content, source string) error {
 	query := `INSERT INTO content(content_id, content, source) VALUES (?, ?, ?)`
 	_, err := db.Exec(query, contentID, content, source)
