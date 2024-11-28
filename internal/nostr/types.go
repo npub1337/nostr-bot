@@ -10,6 +10,7 @@ type Client struct {
 	Relay      *nostr.Relay
 }
 
+// TODO: use models.Content
 type Content struct {
 	ID      string
 	Content string

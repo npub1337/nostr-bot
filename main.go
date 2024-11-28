@@ -39,6 +39,7 @@ func main() {
 			cfg.RelayURL,
 			botConfig.RSSFeeds,
 			db,
+			botConfig.Timeout,
 		)
 		if err != nil {
 			log.Printf("Error initializing bot %s: %v", botConfig.Name, err)
@@ -49,13 +50,13 @@ func main() {
 
 	log.Printf("All bots initialized. Running...")
 
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		for _, b := range bots {
 			log.Printf("Running bot: %s", b.Name)
-			b.Start()
+			b.Run()
 		}
 		<-ticker.C
 	}
