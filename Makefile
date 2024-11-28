@@ -6,7 +6,7 @@ run:
 		echo "Error: config/bots.yaml file not found. Please create it first."; \
 		exit 1; \
 	fi
-	go run cmd/nostr-bot/main.go
+	go run main.go
 
 build:
 	@mkdir -p bin
