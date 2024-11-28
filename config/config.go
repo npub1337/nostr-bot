@@ -18,6 +18,7 @@ type BotConfig struct {
 	NostrPrivateKey string   `yaml:"private_key"`
 	RelayURL        string   `yaml:"relay_url,omitempty"`
 	RSSFeeds        []string `yaml:"rss_feeds"`
+	Timeout         uint     `yaml:"timeout"`
 }
 
 type yamlConfig struct {

@@ -10,7 +10,7 @@ run:
 
 build:
 	@mkdir -p bin
-	go build -o bin/nostr-bot cmd/nostr-bot/main.go
+	go build -o bin/nostr-bot main.go
 
 clean:
 	@echo "Cleaning database..."
