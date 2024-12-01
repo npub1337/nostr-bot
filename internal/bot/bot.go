@@ -9,7 +9,7 @@ import (
 	"nostr-bot/internal/rss"
 )
 
-func NewBot(name string, privateKey string, relayURL string, feeds []string, db *database.DB) (*Bot, error) {
+func NewBot(name string, privateKey string, relayURL string, feeds []string, db *database.DB, timeout uint) (*Bot, error) {
 	nostrClient, err := nostr.NewClient(privateKey, relayURL)
 	if err != nil {
 		return nil, err
@@ -21,12 +21,36 @@ func NewBot(name string, privateKey string, relayURL string, feeds []string, db 
 		RSSFeeds:    feeds,
 		DB:          db,
 		rssFetcher:  rss.NewFetcher(),
+		Timeout:     timeout,
 	}, nil
 }
 
-func (b *Bot) Start() {
-	b.checkRSSFeeds()
-	b.publishPendingItems()
+func (b *Bot) Run() {
+	if b.shouldRun() {
+		b.checkRSSFeeds()
+		b.publishPendingItems()
+	}
+}
+
+func (b *Bot) hasElapsedTime(content database.Content) bool {
+	if content.LastAttempt.IsZero() {
+		return true
+	}
+
+	now := time.Now().UTC()
+	deltaT := now.Sub(content.LastAttempt.UTC())
+	log.Printf("[Bot: %s] has elapsed(): %f", b.Name, deltaT.Seconds())
+	return deltaT.Seconds() >= float64(b.Timeout)
+}
+
+func (b *Bot) shouldRun() bool {
+	lastMsg, err := b.DB.GetLastPublishedMessage()
+	if err != nil {
+		log.Printf("[Bot: %s] can't retrieve the last published message from: %v", b.Name, err)
+		return false
+	}
+
+	return b.hasElapsedTime(lastMsg)
 }
 
 func (b *Bot) checkRSSFeeds() {
@@ -51,6 +75,11 @@ func (b *Bot) checkRSSFeeds() {
 	}
 }
 
+func (b *Bot) isMultipleMessage() bool {
+	return b.Timeout == 0
+}
+
+// TODO: make it concurrent
 func (b *Bot) publishPendingItems() {
 	pendingItems, err := b.DB.GetPendingContent()
 	if err != nil {
@@ -81,6 +110,11 @@ func (b *Bot) publishPendingItems() {
 		err = b.DB.UpdateContentStatus(item.ID, "published")
 		if err != nil {
 			log.Printf("[Bot: %s] Error updating content status: %v", b.Name, err)
+		}
+
+		// TODO: create a field to determine if the bot should send multiple messages
+		if !b.isMultipleMessage() {
+			return
 		}
 
 		time.Sleep(1 * time.Second)

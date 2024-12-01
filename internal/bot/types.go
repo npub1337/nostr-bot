@@ -12,4 +12,5 @@ type Bot struct {
 	RSSFeeds    []string
 	DB          *database.DB
 	rssFetcher  rss.Fetcher
+	Timeout     uint
 }
