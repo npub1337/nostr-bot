@@ -5,12 +5,23 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
 type DB struct {
 	*sql.DB
+}
+
+// TODO: enum for 'status' field
+
+type Content struct {
+	ID          string
+	Content     string
+	Source      string
+	Name        string
+	LastAttempt time.Time
 }
 
 func InitDB(dbPath string) (*DB, error) {
@@ -86,12 +97,34 @@ func (db *DB) GetPendingContent() ([]Content, error) {
 	var contents []Content
 	for rows.Next() {
 		var c Content
-		if err := rows.Scan(&c.ID, &c.Content, &c.Source, &c.BotName); err != nil {
+		if err := rows.Scan(&c.ID, &c.Content, &c.Source, &c.Name); err != nil {
 			return nil, err
 		}
 		contents = append(contents, c)
 	}
 	return contents, nil
+}
+
+func (db *DB) GetLastPublishedMessage() (Content, error) {
+	query := `
+		SELECT content_id, content, source, last_attempt
+		FROM content 
+		WHERE status = 'published' 
+		ORDER BY last_attempt DESC
+		LIMIT 1`
+
+	row := db.QueryRow(query)
+
+	var c Content
+	if err := row.Scan(&c.ID, &c.Content, &c.Source, &c.LastAttempt); err != nil {
+		if err == sql.ErrNoRows {
+			return c, nil
+		}
+
+		return c, err
+	}
+
+	return c, nil
 }
 
 func (db *DB) UpdateContentStatus(contentID, status string) error {
@@ -109,9 +142,11 @@ func (db *DB) UpdateContentStatus(contentID, status string) error {
 	return err
 }
 
-type Content struct {
-	ID      string
-	Content string
-	Source  string
-	BotName string
-}
+// func CloseDB() {
+// 	if db != nil {
+// 		err := db.Close()
+// 		if err != nil {
+// 			log.Printf("Error closing the database: %v", err)
+// 		}
+// 	}
+// }
